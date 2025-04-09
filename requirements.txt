@@ -7,4 +7,3 @@ torch
 python-dotenv
 huggingface-hub
 accelerate
-groq

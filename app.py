@@ -20,7 +20,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Custom CSS
+
 st.markdown("""
 <style>
     .main {
@@ -99,13 +99,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header section
+
 col1, col2 = st.columns([3, 1])
 with col1:
     st.title("📄 NeuroReview Pro")
     st.markdown("<p class='info-text'>Get expert AI feedback on your CV to stand out in the job market</p>", unsafe_allow_html=True)
 
-# Feature highlights
+
 st.markdown("<div class='feature-box'>", unsafe_allow_html=True)
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -120,11 +120,11 @@ with col3:
 
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Main upload section
+
 st.markdown("<div class='upload-section'>", unsafe_allow_html=True)
 st.subheader("📤 Upload Your CV")
 
-# Initialize session state variables if they don't exist
+
 if 'review_completed' not in st.session_state:
     st.session_state.review_completed = False
 if 'review_content' not in st.session_state:
@@ -445,13 +445,7 @@ if st.session_state.review_completed:
     
     # Download option and reset button
     col1, col2 = st.columns(2)
-    with col1:
-        st.download_button(
-            label="📥 Download Review as HTML",
-            data=st.session_state.review_content,
-            file_name="cv_review.html",
-            mime="text/html"
-        )
+    
     with col2:
         if st.button("🔄 Submit Another CV"):
             st.session_state.review_completed = False

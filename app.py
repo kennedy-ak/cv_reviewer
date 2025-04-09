@@ -8,6 +8,7 @@ import docx
 import pandas as pd
 from groq import Groq
 from dotenv import load_dotenv
+import re
 
 load_dotenv()
 
@@ -131,7 +132,8 @@ if 'review_content' not in st.session_state:
 
 
 st.markdown("**Step 1:** Upload your CV file (PDF or DOCX format)")
-uploaded_file = st.file_uploader("", type=["pdf", "docx"], label_visibility="collapsed")
+# Fixed accessibility warning by adding a proper label
+uploaded_file = st.file_uploader("Upload CV file", type=["pdf", "docx"], label_visibility="collapsed")
 
 if uploaded_file:
     file_details = {"Filename": uploaded_file.name, "File size": f"{uploaded_file.size / 1024:.2f} KB"}
@@ -140,7 +142,8 @@ if uploaded_file:
 
 st.markdown("**Step 2:** Enter your email address to receive the review")
 email_placeholder = "your.email@example.com"
-email = st.text_input("", placeholder=email_placeholder, label_visibility="collapsed")
+# Fixed accessibility warning by adding a proper label
+email = st.text_input("Email address", placeholder=email_placeholder, label_visibility="collapsed")
 
 
 st.markdown("**Step 3:** Specify the job role (optional)")
@@ -177,49 +180,43 @@ def extract_text_from_docx(file):
         st.error(f"Error extracting text from DOCX: {str(e)}")
         return ""
 
-# Email send 
+# Update your send_email function to ensure CSS is properly included
 def send_email(recipient_email, subject, body):
-   
     try:
-       
         sender_email = os.getenv("EMAIL_USER")
         password = os.getenv("EMAIL_PASSWORD")
         smtp_server = os.getenv("SMTP_SERVER")
-        smtp_port = os.getenv("SMTP_PORT")
+        smtp_port = int(os.getenv("SMTP_PORT"))  # Convert port to integer
        
-        
-       
-        message = MIMEMultipart()
+        # Create a MIMEMultipart message
+        message = MIMEMultipart("alternative")  # Use "alternative" for HTML emails
         message["From"] = sender_email
         message["To"] = recipient_email
         message["Subject"] = subject
         
-      
+        # Attach HTML content
+        # Make sure CSS is inline within the HTML tags, not in a separate style block
         message.attach(MIMEText(body, "html"))
         
         with st.spinner("Connecting to email server..."):
-           
             try:
-                
+                # Handle different SMTP connection methods based on port
                 if smtp_port == 587:
                     server = smtplib.SMTP(smtp_server, smtp_port, timeout=15)
                     server.set_debuglevel(1)  # Enable debug output
-                    server.ehlo()  #
+                    server.ehlo()
                     server.starttls()
                     server.ehlo() 
                     server.login(sender_email, password)
-                
                 
                 elif smtp_port == 465:
                     server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=15)
                     server.set_debuglevel(1)  # Enable debug output
                     server.login(sender_email, password)
                 
-              
                 else:
                     server = smtplib.SMTP(smtp_server, smtp_port, timeout=15)
                     server.set_debuglevel(1)
-                    
                     
                     try:
                         server.starttls()
@@ -228,16 +225,15 @@ def send_email(recipient_email, subject, body):
                     
                     server.login(sender_email, password)
                 
-                
+                # Send email
                 server.send_message(message)
                 server.quit()
                 
                 return True
                 
             except smtplib.SMTPServerDisconnected as e:
-                
+                # Fallback to SSL if TLS fails
                 if smtp_port == 587:
-                    
                     server = smtplib.SMTP_SSL(smtp_server, 465, timeout=15)
                     server.login(sender_email, password)
                     server.send_message(message)
@@ -246,14 +242,13 @@ def send_email(recipient_email, subject, body):
                 else:
                     raise
                     
-       
     except Exception as e:
         st.error(f"Email delivery error: {str(e)}")
         if hasattr(e, 'smtp_code') and hasattr(e, 'smtp_error'):
             st.error(f"SMTP Code: {e.smtp_code}, SMTP Error: {e.smtp_error}")
         return False
 
-#  Groq client
+# Groq client
 @st.cache_resource
 def get_groq_client():
     try:
@@ -268,7 +263,72 @@ def get_groq_client():
         st.error(f"Error initializing Groq client: {str(e)}")
         return None
 
-#  review CV using Groq
+# Improved function to format review text with proper HTML conversion
+def format_review_for_email(review_text):
+    """
+    Process the review text to convert markdown to HTML and apply inline CSS styles
+    for maximum email client compatibility
+    """
+    import re
+    
+    # Convert markdown headers to HTML headers with inline styles
+    # Replace ## headers with styled h2 tags
+    review_text = re.sub(
+        r'## ([^\n]+)',
+        r'<h2 style="color: #3498db; margin-top: 25px; border-left: 4px solid #3498db; padding-left: 10px;">\1</h2>',
+        review_text
+    )
+    
+    # Convert markdown bold (**text**) to HTML bold with inline styles
+    review_text = re.sub(
+        r'\*\*([^*]+)\*\*',
+        r'<strong style="font-weight: bold;">\1</strong>',
+        review_text
+    )
+    
+    # Convert bullet points (* item) to HTML list items
+    if "* " in review_text:
+        # First, identify bullet point lists and wrap them in <ul> tags
+        bullet_list_pattern = r'(\n\* [^\n]+(?:\n\* [^\n]+)*)'
+        
+        def replace_bullet_list(match):
+            bullet_list = match.group(1)
+            items = bullet_list.strip().split('\n* ')
+            items = [item for item in items if item]
+            
+            html_list = '<ul style="padding-left: 20px;">\n'
+            for item in items:
+                html_list += f'<li style="margin-bottom: 8px;">{item}</li>\n'
+            html_list += '</ul>'
+            
+            return html_list
+        
+        review_text = re.sub(bullet_list_pattern, replace_bullet_list, '\n' + review_text)
+    
+    # Add paragraph tags to text blocks
+    paragraphs = review_text.split('\n\n')
+    formatted_paragraphs = []
+    
+    for p in paragraphs:
+        if not p.strip():
+            continue
+        if not (p.startswith('<h2') or p.startswith('<ul') or p.startswith('<li') or p.startswith('<strong')):
+            p = f'<p style="margin-bottom: 15px; line-height: 1.6;">{p}</p>'
+        formatted_paragraphs.append(p)
+    
+    review_text = '\n'.join(formatted_paragraphs)
+    
+    # Style percentage mentions
+    percentage_pattern = r'(\d{1,3}%)'
+    review_text = re.sub(
+        percentage_pattern, 
+        r'<span style="font-weight: bold; color: #3498db;">\1</span>', 
+        review_text
+    )
+    
+    return review_text
+
+# Review CV using Groq with improved formatting
 def review_cv(cv_text, job_role=None):
     try:
         client = get_groq_client()
@@ -276,42 +336,48 @@ def review_cv(cv_text, job_role=None):
         if not client:
             return "Failed to initialize the Groq client. Please check your API key and try again."
         
-        #  system and user message based 
+        # Create system and user message based on inputs
         if job_role:
             system_message = (
                 "You are a professional CV reviewer and career coach. "
-                f"Provide a detailed analysis of the CV for a {job_role} position. Focus on: "
-                "1. Overall structure and formatting, "
-                f"2. Content relevance for the {job_role} position, "
-                "3. Skills assessment compared to job requirements, "
-                "4. Experience highlights and gaps, "
+                f"Provide a detailed analysis of the CV for a {job_role} position with percentage scores. Focus on: "
+                "1. Overall structure and formatting (score this out of 100%), "
+                "2. Content relevance for the position (score this out of 100%), "
+                "3. Skills assessment compared to job requirements (score this out of 100%), "
+                "4. Experience highlights and gaps (score this out of 100%), "
                 "5. Specific improvement suggestions, "
-        
-                "Format your response in clear sections with HTML formatting using h2 tags for section headers, "
-                "bullet points for lists, and highlight important points. Use a professional and constructive tone."
+                
+                "Also provide an overall CV score as a percentage based on the average of all sections. "
+                
+                "Format your response in clear sections with markdown formatting using ## for section headers, "
+                "* for bullet points, and **bold text** for important points. Include percentages for each major section. "
+                "For each section, explain the reasoning behind the score and what could be improved. "
+                "Use a professional and constructive tone."
             )
-            
             user_message = f"Here is the CV content for a {job_role} position:\n\n{cv_text}"
         else:
             system_message = (
                 "You are a professional CV reviewer and career coach. "
-                "Provide a detailed analysis of the CV. Focus on: "
-                "1. Overall structure and formatting, "
-                "2. Content quality and clarity, "
-                "3. Skills presentation, "
-                "4. Experience highlights, "
+                "Provide a detailed analysis of the CV with percentage scores. Focus on: "
+                "1. Overall structure and formatting (score this out of 100%), "
+                "2. Content quality and clarity (score this out of 100%), "
+                "3. Skills presentation (score this out of 100%), "
+                "4. Experience highlights (score this out of 100%), "
                 "5. Specific improvement suggestions, "
                 
-                "Format your response in clear sections with HTML formatting using h2 tags for section headers, "
-                "bullet points for lists, and highlight important points. Use a professional and constructive tone."
+                "Also provide an overall CV score as a percentage based on the average of all sections. "
+                
+                "Format your response in clear sections with markdown formatting using ## for section headers, "
+                "* for bullet points, and **bold text** for important points. Include percentages for each major section. "
+                "For each section, explain the reasoning behind the score and what could be improved. "
+                "Use a professional and constructive tone."
             )
-            
             user_message = f"Here is the CV content:\n\n{cv_text}"
         
-        #  model
+        # Choose model
         model = "llama-3.3-70b-versatile"
         
-        #  progress bar
+        # Show progress bar
         progress_bar = st.progress(0)
         st.markdown("<p class='info-text'>Analyzing your CV with AI...</p>", unsafe_allow_html=True)
         
@@ -333,10 +399,13 @@ def review_cv(cv_text, job_role=None):
         # Update progress bar
         progress_bar.progress(100)
         
-        
+        # Get review text
         review = chat_completion.choices[0].message.content
         
-        return review
+        # Format the review for email with inline styles
+        formatted_review = format_review_for_email(review)
+        
+        return formatted_review
     
     except Exception as e:
         st.error(f"Error during CV review: {str(e)}")
@@ -369,52 +438,44 @@ if submit_button:
                
                 st.session_state.review_content = review_result
                 
-                # Send email
+                # Send email with improved template
                 email_subject = "Your CV Review Results from CV Reviewer Pro"
                 email_body = f"""
                 <html>
-                <head>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-                        .container {{ max-width: 800px; margin: 0 auto; padding: 20px; }}
-                        h1 {{ color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }}
-                        h2 {{ color: #3498db; margin-top: 25px; border-left: 4px solid #3498db; padding-left: 10px; }}
-                        ul {{ padding-left: 20px; }}
-                        li {{ margin-bottom: 8px; }}
-                        .highlight {{ background-color: #f1f9ff; padding: 15px; border-radius: 5px; }}
-                        .footer {{ margin-top: 40px; font-size: 12px; color: #7f8c8d; text-align: center; }}
-                        .button {{ display: inline-block; background-color: #3498db; color: white; padding: 10px 20px; 
-                                  text-decoration: none; border-radius: 5px; margin-top: 20px; }}
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <h1>Your CV Review Results</h1>
-                        <p>Thank you for using CV Reviewer Pro. Here is your personalized CV assessment:</p>
-                        
-                        {review_result}
-                        
-                        <div class="highlight">
-                            <h2>Next Steps</h2>
-                            <p>Consider implementing these suggestions to strengthen your CV. After revisions, you may want to:</p>
-                            <ul>
-                                <li>Ask a colleague or mentor to review your updated CV</li>
-                                <li>Tailor your CV further for each specific job application</li>
-                                <li>Update your LinkedIn profile to match your improved CV</li>
-                            </ul>
-                        </div>
-                        
-                        <div class="footer">
-                            <p>This review was generated using AI and should be considered as suggestions. 
-                            For more personalized advice, consider consulting with a career coach.</p>
-                            <p>&copy; 2025 CV Reviewer Pro | Powered by Groq | Built by Kennedy</p>
-                        </div>
-                    </div>
-                </body>
-                </html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Your CV Review</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0;">
+    <div style="max-width: 800px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;">Your CV Review Results</h1>
+        <p style="margin-bottom: 15px; line-height: 1.6;">Thank you for using CV Reviewer Pro. Here is your personalized CV assessment:</p>
+        
+        <div style="margin-top: 20px;">
+            {review_result}
+        </div>
+        
+        <div style="background-color: #f1f9ff; padding: 15px; border-radius: 5px; margin-top: 30px;">
+            <h2 style="color: #3498db; margin-top: 5px; border-left: 4px solid #3498db; padding-left: 10px;">Next Steps</h2>
+            <p style="margin-bottom: 15px; line-height: 1.6;">Consider implementing these suggestions to strengthen your CV. After revisions, you may want to:</p>
+            <ul style="padding-left: 20px;">
+                <li style="margin-bottom: 8px;">Ask a colleague or mentor to review your updated CV</li>
+                <li style="margin-bottom: 8px;">Tailor your CV further for each specific job application</li>
+                <li style="margin-bottom: 8px;">Update your LinkedIn profile to match your improved CV</li>
+            </ul>
+        </div>
+        
+        <div style="margin-top: 40px; font-size: 12px; color: #7f8c8d; text-align: center;">
+            <p style="margin-bottom: 15px; line-height: 1.6;">This review was generated using AI and should be considered as suggestions. 
+            For more personalized advice, consider consulting with a career coach.</p>
+            <p style="margin-bottom: 15px; line-height: 1.6;">&copy; 2025 CV Reviewer Pro | Powered by Groq | Built by Kennedy</p>
+        </div>
+    </div>
+</body>
+</html>
                 """
                 
-                # Send  email
+                # Send email
                 email_sent = send_email(email, email_subject, email_body)
                 
                 if email_sent:
@@ -425,7 +486,7 @@ if submit_button:
             else:
                 st.error("⚠️ Could not extract text from the uploaded file. Please try again with a different file.")
 
-# 
+# Display review in app
 if st.session_state.review_completed:
     st.markdown("<div class='success-box'>", unsafe_allow_html=True)
     st.success("✅ CV review completed!")
@@ -439,7 +500,6 @@ if st.session_state.review_completed:
         st.markdown(st.session_state.review_content, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
-  
     col1, col2 = st.columns(2)
     
     with col2:
@@ -456,7 +516,7 @@ if not st.session_state.review_completed:
         The application uses advanced AI to analyze your CV and provide professional feedback on structure, content, and relevance to your target role.
         
         **Is my data secure?**  
-        Yes, I  do not store your CV or personal information. After processing, all data is deleted .
+        Yes, I  do not store your CV or personal information. After processing, all data is deleted.
         
         **How long does the review take?**  
         Most reviews are completed within 1-2 minutes, depending on the length and complexity of your CV.
@@ -473,7 +533,6 @@ if not st.session_state.review_completed:
         st.markdown("""
         - **Keep it concise**: Aim for 1-2 pages maximum
         - **Use keywords**: Include industry-specific terms relevant to your target role
-        
         - **Focus on recent experience**: Stress your most recent and relevant positions
         - **Check formatting**: Ensure consistent fonts, spacing, and bullet points
         - **Proofread carefully**: Remove spelling and grammatical errors

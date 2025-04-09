@@ -182,10 +182,11 @@ def send_email(recipient_email, subject, body):
    
     try:
        
-        sender_email = st.secrets["EMAIL_USER"]
-        password = st.secrets["EMAIL_PASSWORD"]
-        smtp_server = st.secrets["SMTP_SERVER"]
-        smtp_port = int(st.secrets["SMTP_PORT"])
+        sender_email = os.getenv("EMAIL_USER")
+        password = os.getenv("EMAIL_PASSWORD")
+        smtp_server = os.getenv("SMTP_SERVER")
+        smtp_port = os.getenv("SMTP_PORT")
+       
         
        
         message = MIMEMultipart()
@@ -256,7 +257,7 @@ def send_email(recipient_email, subject, body):
 @st.cache_resource
 def get_groq_client():
     try:
-        api_key = st.secrets["GROQ_API_KEY"]
+        api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
             st.error("GROQ_API_KEY not found in environment variables.")
             return None
@@ -472,10 +473,10 @@ if not st.session_state.review_completed:
         st.markdown("""
         - **Keep it concise**: Aim for 1-2 pages maximum
         - **Use keywords**: Include industry-specific terms relevant to your target role
-        - **Quantify achievements**: Use numbers and percentages to demonstrate impact
-        - **Focus on recent experience**: Emphasize your most recent and relevant positions
+        
+        - **Focus on recent experience**: Stress your most recent and relevant positions
         - **Check formatting**: Ensure consistent fonts, spacing, and bullet points
-        - **Proofread carefully**: Eliminate spelling and grammatical errors
+        - **Proofread carefully**: Remove spelling and grammatical errors
         - **Use action verbs**: Start bullet points with impactful verbs like "achieved," "delivered," or "implemented"
         """)
 

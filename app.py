@@ -411,7 +411,7 @@ if submit_button:
                         <div class="footer">
                             <p>This review was generated using AI and should be considered as suggestions. 
                             For more personalized advice, consider consulting with a career coach.</p>
-                            <p>&copy; 2025 CV Reviewer Pro | Powered by Groq</p>
+                            <p>&copy; 2025 CV Reviewer Pro | Powered by Groq | Built by Kennedy</p>
                         </div>
                     </div>
                 </body>

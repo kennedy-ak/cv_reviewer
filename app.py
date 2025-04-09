@@ -9,10 +9,9 @@ import pandas as pd
 from groq import Groq
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
 
-# Configure page
+
 st.set_page_config(
     page_title="CV Reviewer Pro",
     page_icon="📄",
@@ -20,7 +19,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-
+# adding css
 st.markdown("""
 <style>
     .main {
@@ -130,7 +129,7 @@ if 'review_completed' not in st.session_state:
 if 'review_content' not in st.session_state:
     st.session_state.review_content = ""
 
-# File uploader with instructions
+
 st.markdown("**Step 1:** Upload your CV file (PDF or DOCX format)")
 uploaded_file = st.file_uploader("", type=["pdf", "docx"], label_visibility="collapsed")
 
@@ -138,23 +137,23 @@ if uploaded_file:
     file_details = {"Filename": uploaded_file.name, "File size": f"{uploaded_file.size / 1024:.2f} KB"}
     st.success(f"✓ File uploaded: **{uploaded_file.name}**")
 
-# Email input with explanation
+
 st.markdown("**Step 2:** Enter your email address to receive the review")
 email_placeholder = "your.email@example.com"
 email = st.text_input("", placeholder=email_placeholder, label_visibility="collapsed")
 
-# Optional job role input
+
 st.markdown("**Step 3:** Specify the job role (optional)")
 job_role_checkbox = st.checkbox("I want targeted feedback for a specific job role")
 job_role = None
 if job_role_checkbox:
     job_role = st.text_input("Job title", placeholder="e.g., Software Engineer, Marketing Manager, Data Analyst")
 
-# Submit button
+
 submit_button = st.button("📋 Review My CV")
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Function to extract text from PDF
+# extract text from PDF
 def extract_text_from_pdf(file):
     try:
         pdf_reader = PyPDF2.PdfReader(file)
@@ -166,7 +165,7 @@ def extract_text_from_pdf(file):
         st.error(f"Error extracting text from PDF: {str(e)}")
         return ""
 
-# Function to extract text from DOCX
+#  extract text from DOCX
 def extract_text_from_docx(file):
     try:
         doc = docx.Document(file)
@@ -178,52 +177,49 @@ def extract_text_from_docx(file):
         st.error(f"Error extracting text from DOCX: {str(e)}")
         return ""
 
-# Email sending function (same as before)
+# Email send 
 def send_email(recipient_email, subject, body):
-    """
-    Send an email with improved error handling and debugging.
-    Supports both TLS (port 587) and SSL (port 465) connections.
-    """
+   
     try:
-        # Get email credentials from environment variables
+       
         sender_email = st.secrets["EMAIL_USER"]
         password = st.secrets["EMAIL_PASSWORD"]
         smtp_server = st.secrets["SMTP_SERVER"]
         smtp_port = int(st.secrets["SMTP_PORT"])
         
-        # Create message
+       
         message = MIMEMultipart()
         message["From"] = sender_email
         message["To"] = recipient_email
         message["Subject"] = subject
         
-        # Add body to email
+      
         message.attach(MIMEText(body, "html"))
         
         with st.spinner("Connecting to email server..."):
-            # Try different connection methods based on port
+           
             try:
-                # For port 587 (TLS)
+                
                 if smtp_port == 587:
                     server = smtplib.SMTP(smtp_server, smtp_port, timeout=15)
                     server.set_debuglevel(1)  # Enable debug output
-                    server.ehlo()  # Identify with the server
+                    server.ehlo()  #
                     server.starttls()
-                    server.ehlo()  # Re-identify after TLS
+                    server.ehlo() 
                     server.login(sender_email, password)
                 
-                # For port 465 (SSL)
+                
                 elif smtp_port == 465:
                     server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=15)
                     server.set_debuglevel(1)  # Enable debug output
                     server.login(sender_email, password)
                 
-                # Fallback for other ports
+              
                 else:
                     server = smtplib.SMTP(smtp_server, smtp_port, timeout=15)
                     server.set_debuglevel(1)
                     
-                    # Try both with and without TLS
+                    
                     try:
                         server.starttls()
                     except:
@@ -231,16 +227,16 @@ def send_email(recipient_email, subject, body):
                     
                     server.login(sender_email, password)
                 
-                # Send the email
+                
                 server.send_message(message)
                 server.quit()
                 
                 return True
                 
             except smtplib.SMTPServerDisconnected as e:
-                # Try alternative connection method
+                
                 if smtp_port == 587:
-                    # Try SSL connection
+                    
                     server = smtplib.SMTP_SSL(smtp_server, 465, timeout=15)
                     server.login(sender_email, password)
                     server.send_message(message)
@@ -249,15 +245,14 @@ def send_email(recipient_email, subject, body):
                 else:
                     raise
                     
-        # Various exception handlers omitted for brevity - same as your original function
-                
+       
     except Exception as e:
         st.error(f"Email delivery error: {str(e)}")
         if hasattr(e, 'smtp_code') and hasattr(e, 'smtp_error'):
             st.error(f"SMTP Code: {e.smtp_code}, SMTP Error: {e.smtp_error}")
         return False
 
-# Function to initialize Groq client
+#  Groq client
 @st.cache_resource
 def get_groq_client():
     try:
@@ -272,7 +267,7 @@ def get_groq_client():
         st.error(f"Error initializing Groq client: {str(e)}")
         return None
 
-# Function to review CV using Groq
+#  review CV using Groq
 def review_cv(cv_text, job_role=None):
     try:
         client = get_groq_client()
@@ -280,7 +275,7 @@ def review_cv(cv_text, job_role=None):
         if not client:
             return "Failed to initialize the Groq client. Please check your API key and try again."
         
-        # Prepare system and user message based on whether job role is provided
+        #  system and user message based 
         if job_role:
             system_message = (
                 "You are a professional CV reviewer and career coach. "
@@ -312,14 +307,14 @@ def review_cv(cv_text, job_role=None):
             
             user_message = f"Here is the CV content:\n\n{cv_text}"
         
-        # Choose the model
+        #  model
         model = "llama-3.3-70b-versatile"
         
-        # Create progress bar
+        #  progress bar
         progress_bar = st.progress(0)
         st.markdown("<p class='info-text'>Analyzing your CV with AI...</p>", unsafe_allow_html=True)
         
-        # Update progress
+        # Update progress bar
         progress_bar.progress(30)
         
         # Generate review
@@ -334,10 +329,10 @@ def review_cv(cv_text, job_role=None):
             top_p=0.9
         )
         
-        # Update progress
+        # Update progress bar
         progress_bar.progress(100)
         
-        # Extract the response
+        
         review = chat_completion.choices[0].message.content
         
         return review
@@ -346,7 +341,7 @@ def review_cv(cv_text, job_role=None):
         st.error(f"Error during CV review: {str(e)}")
         return "An error occurred during the review process. Please try again later."
 
-# Process submission
+# user email validation
 if submit_button:
     if not uploaded_file:
         st.error("⚠️ Please upload your CV.")
@@ -356,7 +351,7 @@ if submit_button:
         st.error("⚠️ Please specify the job role or uncheck the option.")
     else:
         with st.spinner("Processing your CV..."):
-            # Extract text from CV
+           
             file_extension = uploaded_file.name.split(".")[-1].lower()
             if file_extension == "pdf":
                 cv_text = extract_text_from_pdf(uploaded_file)
@@ -367,10 +362,10 @@ if submit_button:
                 st.stop()
             
             if cv_text:
-                # Review the CV
+                
                 review_result = review_cv(cv_text, job_role)
                 
-                # Store the review content in session state
+               
                 st.session_state.review_content = review_result
                 
                 # Send email
@@ -418,7 +413,7 @@ if submit_button:
                 </html>
                 """
                 
-                # Send the email
+                # Send  email
                 email_sent = send_email(email, email_subject, email_body)
                 
                 if email_sent:
@@ -429,7 +424,7 @@ if submit_button:
             else:
                 st.error("⚠️ Could not extract text from the uploaded file. Please try again with a different file.")
 
-# Display success message and review preview if review is completed
+# 
 if st.session_state.review_completed:
     st.markdown("<div class='success-box'>", unsafe_allow_html=True)
     st.success("✅ CV review completed!")
@@ -443,7 +438,7 @@ if st.session_state.review_completed:
         st.markdown(st.session_state.review_content, unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
     
-    # Download option and reset button
+  
     col1, col2 = st.columns(2)
     
     with col2:

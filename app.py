@@ -186,10 +186,10 @@ def send_email(recipient_email, subject, body):
     """
     try:
         # Get email credentials from environment variables
-        sender_email = os.getenv("EMAIL_USER")
-        password = os.getenv("EMAIL_PASSWORD")
-        smtp_server = os.getenv("SMTP_SERVER")
-        smtp_port = int(os.getenv("SMTP_PORT"))
+        sender_email = st.secrets["EMAIL_USER"]
+        password = st.secrets["EMAIL_PASSWORD"]
+        smtp_server = st.secrets["SMTP_SERVER"]
+        smtp_port = int(st.secrets["SMTP_PORT"])
         
         # Create message
         message = MIMEMultipart()
@@ -261,7 +261,7 @@ def send_email(recipient_email, subject, body):
 @st.cache_resource
 def get_groq_client():
     try:
-        api_key = os.getenv("GROQ_API_KEY")
+        api_key = st.secrets["GROQ_API_KEY"]
         if not api_key:
             st.error("GROQ_API_KEY not found in environment variables.")
             return None

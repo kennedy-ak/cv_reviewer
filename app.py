@@ -252,7 +252,7 @@ def send_email(recipient_email, subject, body):
 @st.cache_resource
 def get_groq_client():
     try:
-        api_key = os.getenv("GROQ_API_KEY")
+        api_key = st.secrets["GROQ_API_KEY"]
         if not api_key:
             st.error("GROQ_API_KEY not found in environment variables.")
             return None

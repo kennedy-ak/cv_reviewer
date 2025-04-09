@@ -1,0 +1,29 @@
+# Python-related
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.env
+
+# Environment variables
+.env
+
+# Streamlit cache
+.streamlit/
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE-specific files
+.vscode/
+.idea/
+
+# Model and tokenizer files
+*.bin
+*.pt
+*.h5

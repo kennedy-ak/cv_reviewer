@@ -1,0 +1,9 @@
+streamlit
+PyPDF2
+python-docx
+pandas
+transformers
+torch
+python-dotenv
+huggingface-hub
+accelerate
